@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+
+<html>
+
+
+
+<head>
+
+    <link rel="stylesheet" href="/static/styles.css">
+
+    <title>Valores y Vectores Propios</title>
+
+
+
+    <style>
+        .result-container {
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background-color: #fff;
+            margin-top: 20px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        .matrix-header {
+            font-size: 1.2em;
+            color: #007bff;
+            margin-top: 15px;
+            margin-bottom: 5px;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 5px;
+        }
+        
+        .matrix-display {
+            font-family: 'Consolas', 'Courier New', monospace;
+            white-space: pre;
+            background-color: #f4f4f4;
+            border: 1px solid #ccc;
+            padding: 10px;
+            border-radius: 4px;
+            text-align: center;
+            margin-bottom: 15px;
+            overflow-x: auto;
+            /* Asegura la visualización en pantallas pequeñas */
+        }
+        
+        .vector-display {
+            font-weight: bold;
+            color: #28a745;
+            font-size: 1.1em;
+            margin-bottom: 15px;
+        }
+        
+        .log-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        
+        .log-table th,
+        .log-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: center;
+            font-family: 'Consolas', 'Courier New', monospace;
+        }
+        
+        .log-table th {
+            background-color: #f0f8ff;
+            color: #007bff;
+        }
+    </style>
+
+</head>
+
+
+
+<body>
+
+    <h1>4. Valores y Vectores Propios</h1>
+
+
+
+    {% set data = resultado if resultado is not none else {} %}
+
+
+
+    <form method="POST" action="/valores-propios">
+
+        <h3>Seleccione el método:</h3>
+
+        <select name="metodo" class="select">
+
+<option value="potencia" {% if data.titulo and data.titulo.startswith('Método de la Potencia') %}selected{% endif %}>Método de la Potencia</option>
+
+<option value="potencia_inversa" {% if data.titulo and data.titulo.startswith('Método de la Potencia Inversa') %}selected{% endif %}>Método de la Potencia Inversa</option>
+
+</select>
+
+
+
+        <h3>Seleccione el ejemplo:</h3>
+
+        <select name="ejemplo" class="select">
+
+<option value="e1">Ejemplo 1</option>
+
+<option value="e2">Ejemplo 2</option>
+
+</select>
+
+
+
+        <br><br>
+
+        <button class="btn" type="submit">Calcular</button>
+
+    </form>
+
+
+
+    {% if resultado %}
+
+    <div class="result-container">
+
+
+
+        <!-- MANEJO DE ERRORES -->
+
+        {% if resultado.error %}
+
+        <h2 style="color: red;">Error:</h2>
+
+        <p>{{ resultado.error }}</p>
+
+        {% if resultado.A %}
+
+        <h3 class="matrix-header">Matriz A utilizada:</h3>
+
+        <div class="matrix-display">
+
+            {% for row in resultado.A %} {% for val in row %} {{ "%10.4f" | format(val) }} {% endfor %}
+
+            <br> {% endfor %}
+
+        </div>
+
+        {% endif %} {% else %}
+
+
+
+        <h2>{{ resultado.titulo }}</h2>
+
+        <p><strong>Descripción:</strong> {{ resultado.descripcion }}</p>
+
+
+
+        <h3 class="matrix-header">Matriz A:</h3>
+
+        <div class="matrix-display">
+
+            {% for row in resultado.A %} {% for val in row %} {{ "%10.4f" | format(val) }} {% endfor %}
+
+            <br> {% endfor %}
+
+        </div>
+
+
+
+        <!-- TABLA DE PASOS -->
+
+        <h3>Desarrollo Paso a Paso ({{ resultado.iteraciones }} iteraciones):</h3>
+
+
+
+        <table class="log-table">
+
+            <thead>
+
+                <tr>
+
+                    <th>k</th>
+
+                    <th>Vector y = A·x (o y=A⁻¹·x)</th>
+
+                    {% if resultado.titulo.startswith('Método de la Potencia Inversa') %}
+
+                    <th>λ⁻¹ Aprox. ($||y||_\infty$)</th>
+
+                    <th>λ Real Aprox. ($1/λ⁻¹$)</th>
+
+                    {% else %}
+
+                    <th>λ Aprox. ($||y||_\infty$)</th>
+
+                    {% endif %}
+
+                    <th>Vector x normalizado</th>
+
+                </tr>
+
+            </thead>
+
+            <tbody>
+
+                {% for log in resultado.logs %} {% if log.iteracion is defined %}
+
+                <tr>
+
+                    <td>{{ log.iteracion }}</td>
+
+                    <td>{{ log.y }}</td>
+
+                    {% if resultado.titulo.startswith('Método de la Potencia Inversa') %}
+
+                    <td>{{ log.lambda_inv_aprox }}</td>
+
+                    <td>{{ log.lambda_real }}</td>
+
+                    {% else %}
+
+                    <td>{{ log.lambda_aprox }}</td>
+
+                    {% endif %}
+
+                    <td>{{ log.x_new }}</td>
+
+                </tr>
+
+                {% endif %} {% endfor %}
+
+            </tbody>
+
+        </table>
+
+
+
+        <!-- RESULTADO FINAL -->
+
+        <h3 class="matrix-header" style="color: green;">Resultado Final</h3>
+
+        <p class="vector-display">
+
+            Autovalor: $\lambda \approx$ {{ resultado.lambda_final }}<br> Vector Propio: $\mathbf{v} \approx$ {{ resultado.vector_final }}
+
+        </p>
+
+
+
+        {% endif %}
+
+    </div>
+
+    {% endif %}
+
+
+
+    <br>
+
+    <a class="btn" href="/menu">Regresar al menú</a>
+
+</body>
+
+
+
+</html>
