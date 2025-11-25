@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <link rel="stylesheet" href="/static/styles.css">
+    <title>Factorización LU</title>
+
+    <!-- Estilos específicos para la visualización de matrices y logs -->
+    <style>
+        .result-container {
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background-color: #fff;
+            margin-top: 20px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        .matrix-header {
+            font-size: 1.2em;
+            color: #007bff;
+            margin-top: 15px;
+            margin-bottom: 5px;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 5px;
+        }
+        
+        .matrix-display,
+        .vector-display {
+            font-family: 'Consolas', 'Courier New', monospace;
+            white-space: pre-wrap;
+            background-color: #f4f4f4;
+            border: 1px solid #ccc;
+            padding: 10px;
+            border-radius: 4px;
+            text-align: left;
+            margin-bottom: 15px;
+            overflow-x: auto;
+        }
+        
+        .log-list {
+            list-style: none;
+            padding-left: 20px;
+        }
+        
+        .log-list li {
+            margin-bottom: 5px;
+            padding-left: 0;
+            text-indent: -10px;
+        }
+        
+        h2 {
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 5px;
+            color: #333;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Factorización LU</h1>
+
+    <!-- 
+        Definimos una variable temporal 'data' que es el 'resultado' si existe, 
+        o un diccionario vacío si es None (al cargar la página por primera vez)
+    -->
+    {% set data = resultado if resultado is not none else {} %}
+
+    <form method="POST" action="/factorizacion-lu">
+        <h3>Seleccione el método:</h3>
+        <select name="metodo" class="select">
+            <!-- Usamos 'data.metodo' para verificar el valor, con un fallback seguro -->
+            <option value="crout" {% if data.metodo is defined and data.metodo.startswith('Crout') %}selected{% endif %}>Crout</option>
+            <option value="cholesky" {% if data.metodo is defined and data.metodo.startswith('Cholesky') %}selected{% endif %}>Cholesky</option>
+        </select>
+
+        <h3>Seleccione el ejemplo:</h3>
+        <select name="ejemplo" class="select">
+            <option value="e1">Ejemplo 1</option>
+            <option value="e2">Ejemplo 2</option>
+        </select>
+
+        <br><br>
+        <button class="btn" type="submit">Calcular</button>
+    </form>
+
+    {% if resultado %}
+
+    <div class="result-container">
+
+        <!-- MANEJO DE ERRORES -->
+        {% if resultado.error %}
+        <h2 style="color: red;">Error:</h2>
+        <pre>{{ resultado.error }}</pre>
+        <h3>Sistema que se intentó resolver:</h3>
+        <pre>{{ resultado.sistema_texto }}</pre> {% else %}
+
+        <h2>Método: {{ resultado.metodo }}</h2>
+        <h3>Ejemplo: {{ resultado.ejemplo_titulo }}</h3>
+
+        <!-- Mostrar Sistema Original -->
+        <h3 class="matrix-header">Sistema $Ax = b$:</h3>
+        <pre class="matrix-display">{{ resultado.sistema_texto }}</pre>
+
+        <!-- 1. Proceso de Descomposición -->
+        <h2>1. Proceso de Descomposición $\mathbf{A = LU}$ (o $\mathbf{L L^T}$)</h2>
+
+        {% for item in resultado.proceso_decomp %}
+
+        <!-- Si es una actualización de matriz, mostrar el estado actual -->
+        {% if item.type == 'matrix_update' %}
+        <h4 style="margin-top:20px; color:#555;">{{ item.paso }}</h4>
+
+        <p>Matriz $\mathbf{L}$ actual:</p>
+        <div class="matrix-display">
+            {% for row in item.L_actual %} {% for val in row %} {{ "%10.6f" | format(val) }} {% endfor %}
+            <br> {% endfor %}
+        </div>
+
+        {% if item.U_actual %}
+        <p>Matriz $\mathbf{U}$ actual:</p>
+        <div class="matrix-display">
+            {% for row in item.U_actual %} {% for val in row %} {{ "%10.6f" | format(val) }} {% endfor %}
+            <br> {% endfor %}
+        </div>
+        {% endif %}
+        <!-- Si es una línea de cálculo, mostrar la fórmula -->
+        {% else %}
+        <p style="font-family: 'Consolas', 'Courier New', monospace; margin: 3px 0;">{{ item }}</p>
+        {% endif %} {% endfor %}
+
+        <!-- Matrices Finales -->
+        <h3 class="matrix-header">Matrices de Factorización Finales</h3>
+        <p>Matriz $\mathbf{L}$ (Triangular Inferior):</p>
+        <div class="matrix-display">
+            {% for row in resultado.L %} {% for val in row %} {{ "%10.6f" | format(val) }} {% endfor %}
+            <br> {% endfor %}
+        </div>
+
+        <p>Matriz $\mathbf{U}$ (Triangular Superior - o $\mathbf{L^T}$):</p>
+        <div class="matrix-display">
+            {% for row in resultado.U %} {% for val in row %} {{ "%10.6f" | format(val) }} {% endfor %}
+            <br> {% endfor %}
+        </div>
+
+        <!-- 2. Sustitución Hacia Adelante (Ly = b) -->
+        <h2>2. Sustitución Hacia Adelante $\mathbf{Ly = b}$</h2>
+        <p>Cálculo del vector $\mathbf{y}$ paso a paso:</p>
+        <div class="log-list">
+            {% for log in resultado.proceso_fwd %}
+            <li>{{ log }}</li>
+            {% endfor %}
+        </div>
+        <p>Vector $\mathbf{y}$ resultante:</p>
+        <div class="vector-display">
+            {% for valor in resultado.y_vector %} y{{ loop.index }} = {{ "%10.6f" | format(valor) }}<br> {% endfor %}
+        </div>
+
+        <!-- 3. Sustitución Hacia Atrás (Ux = y) -->
+        <h2>3. Sustitución Hacia Atrás $\mathbf{Ux = y}$</h2>
+        <p>Cálculo del vector $\mathbf{x}$ paso a paso:</p>
+        <div class="log-list">
+            {% for log in resultado.proceso_back %}
+            <li>{{ log }}</li>
+            {% endfor %}
+        </div>
+
+        <!-- 4. Solución Final -->
+        <h2 style="color: green;">4. Solución Final del Sistema $\mathbf{x}$</h2>
+        <div class="vector-display" style="border-color: green; font-weight: bold;">
+            {% for valor in resultado.solucion_final %} x{{ loop.index }} = {{ "%10.6f" | format(valor) }}<br> {% endfor %}
+        </div>
+
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <br>
+    <a class="btn" href="/menu">Regresar al menú</a>
+</body>
+
+</html>
